@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Registration</title>
+    <style>
+        table { border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #999; padding: 6px 12px; }
+        th { background: #eee; }
+    </style>
+</head>
+<body>
+<h2>Student Registration</h2>
+<input id="name" placeholder="Name"><br><br>
+<input id="email" placeholder="Email"><br><br>
+<input id="course" placeholder="Course"><br><br>
+<button id="btn" onclick="save()">Register</button>
+<button id="cancel" onclick="reset()" style="display:none">Cancel</button>
+<p id="msg"></p>
+
+<h3>Registered Students</h3>
+<table>
+    <thead>
+    <tr><th>ID</th><th>Name</th><th>Email</th><th>Course</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="list"></tbody>
+</table>
+
+<script>
+    let students = [];
+    let editingId = null;
+
+    function load() {
+        fetch('/students').then(r => r.json()).then(data => {
+            students = data;
+            document.getElementById('list').innerHTML = data.map(s =>
+                '<tr><td>' + s.id + '</td><td>' + s.name + '</td><td>' +
+                s.email + '</td><td>' + s.course + '</td><td>' +
+                '<button onclick="edit(' + s.id + ')">Edit</button> ' +
+                '<button onclick="del(' + s.id + ')">Delete</button></td></tr>').join('');
+        });
+    }
+
+    function edit(id) {
+        const s = students.find(x => x.id === id);
+        document.getElementById('name').value = s.name;
+        document.getElementById('email').value = s.email;
+        document.getElementById('course').value = s.course;
+        editingId = id;
+        document.getElementById('btn').innerText = 'Update';
+        document.getElementById('cancel').style.display = 'inline';
+        document.getElementById('msg').innerText = 'Editing ID ' + id;
+    }
+
+    function reset() {
+        editingId = null;
+        ['name', 'email', 'course'].forEach(i => document.getElementById(i).value = '');
+        document.getElementById('btn').innerText = 'Register';
+        document.getElementById('cancel').style.display = 'none';
+    }
+
+    function save() {
+        const url = editingId ? '/students/' + editingId : '/students';
+        fetch(url, {
+            method: editingId ? 'PUT' : 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                course: document.getElementById('course').value
+            })
+        }).then(r => r.json()).then(d => {
+            if (d.error) {
+                document.getElementById('msg').innerText = d.error;
+                return;
+            }
+            document.getElementById('msg').innerText =
+                (editingId ? 'Updated ID ' : 'Saved with ID ') + d.id;
+            reset();
+            load();
+        });
+    }
+
+    function del(id) {
+        if (!confirm('Delete student ' + id + '?')) return;
+        fetch('/students/' + id, {method: 'DELETE'}).then(() => {
+            document.getElementById('msg').innerText = 'Deleted ID ' + id;
+            load();
+        });
+    }
+
+    load();
+</script>
+</body>
+</html>
