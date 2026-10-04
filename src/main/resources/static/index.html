@@ -1,26 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang ="en">
 <head>
     <title>Student Registration</title>
     <style>
-        table { border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #999; padding: 6px 12px; }
-        th { background: #eee; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f3f4f8;
+            color: #222;
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 0 16px;
+        }
+        h2, h3 { color: #3b3f9e; }
+        input {
+            padding: 10px;
+            width: 260px;
+            max-width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        input:focus { outline: none; border-color: #3b3f9e; }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #3b3f9e;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        button:hover { background: #2d3080; }
+        #cancel { background: #888; }
+        td button:last-child { background: #d9363e; }
+        td button:last-child:hover { background: #b22a31; }
+        #msg { font-weight: 600; color: #3b3f9e; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 12px;
+        }
+        th {
+            background: #3b3f9e;
+            color: #fff;
+            text-align: left;
+            cursor: pointer;
+        }
+        th, td { padding: 10px 14px; border-bottom: 1px solid #eee; }
+        tr:hover td { background: #f0f1ff; }
     </style>
 </head>
 <body>
 <h2>Student Registration</h2>
-<input id="name" placeholder="Name"><br><br>
-<input id="email" placeholder="Email"><br><br>
-<input id="course" placeholder="Course"><br><br>
+<input id="name" placeholder="Name" aria-label="Name"><br><br>
+<input id="email" placeholder="Email" aria-label="Email"><br><br>
+<input id="course" placeholder="Course" aria-label="Course"><br><br>
 <button id="btn" onclick="save()">Register</button>
 <button id="cancel" onclick="reset()" style="display:none">Cancel</button>
 <p id="msg"></p>
 
 <h3>Registered Students</h3>
+<input id="search" placeholder="Search by name or course" aria-label="Search" oninput="render()">
 <table>
     <thead>
-    <tr><th>ID</th><th>Name</th><th>Email</th><th>Course</th><th>Actions</th></tr>
+    <tr>
+        <th onclick="sortBy('id')">ID</th>
+        <th onclick="sortBy('name')">Name</th>
+        <th onclick="sortBy('email')">Email</th>
+        <th onclick="sortBy('course')">Course</th>
+        <th>Actions</th>
+    </tr>
     </thead>
     <tbody id="list"></tbody>
 </table>
@@ -28,16 +81,35 @@
 <script>
     let students = [];
     let editingId = null;
+    let sortKey = 'id', sortAsc = true;
 
-    function load() {
-        fetch('/students').then(r => r.json()).then(data => {
-            students = data;
-            document.getElementById('list').innerHTML = data.map(s =>
+        function load() {
+            fetch('/students').then(r => r.json()).then(data => {
+                students = data;
+                render();
+            });
+        }
+
+        function sortBy(key) {
+            sortAsc = (sortKey === key) ? !sortAsc : true;
+            sortKey = key;
+            render();
+        }
+
+        function render() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const rows = students
+                .filter(s => s.name.toLowerCase().includes(q) || s.course.toLowerCase().includes(q))
+                .sort((a, b) => {
+                    const x = a[sortKey], y = b[sortKey];
+                    const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+                    return sortAsc ? c : -c;
+                });
+            document.getElementById('list').innerHTML = rows.map(s =>
                 '<tr><td>' + s.id + '</td><td>' + s.name + '</td><td>' +
                 s.email + '</td><td>' + s.course + '</td><td>' +
                 '<button onclick="edit(' + s.id + ')">Edit</button> ' +
                 '<button onclick="del(' + s.id + ')">Delete</button></td></tr>').join('');
-        });
     }
 
     function edit(id) {
@@ -50,7 +122,6 @@
         document.getElementById('cancel').style.display = 'inline';
         document.getElementById('msg').innerText = 'Editing ID ' + id;
     }
-
     function reset() {
         editingId = null;
         ['name', 'email', 'course'].forEach(i => document.getElementById(i).value = '');
